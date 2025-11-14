@@ -24,7 +24,7 @@ function formatNutrition(value, unit = 'g') {
   if (value === null || value === undefined || isNaN(value)) {
     return 'N/A';
   }
-  return ${Math.round(value)}${unit};
+  return `${Math.round(value)}${unit}`;
 }
 
 /**
@@ -33,7 +33,7 @@ function formatNutrition(value, unit = 'g') {
 function getGradeClass(grade) {
   if (!grade) return 'badge-grade';
   const gradeLower = grade.toLowerCase();
-  return badge-grade badge-${gradeLower};
+  return `badge-grade badge-${gradeLower}`;
 }
 
 /**
@@ -67,7 +67,7 @@ function hideLoading() {
  */
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
-  toast.className = toast toast-${type};
+  toast.className = `toast toast-${type}`;
   toast.textContent = message;
   toast.style.cssText = `
     position: fixed;
@@ -163,3 +163,4 @@ function getImageUrl(product) {
   }
   return 'https://via.placeholder.com/400?text=No+Image';
 }
+
