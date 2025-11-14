@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Tracker - Home</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="home-header">
+      <h1>🍎 Food Tracker</h1>
+      <p>Discover nutrition facts and make healthier choices</p>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <div style="position: relative;">
+        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-bar" 
+          placeholder="Search for food products..."
+          autocomplete="off"
+        >
+      </div>
+      <div id="search-results" class="search-results" style="display: none;"></div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div class="quick-action-card" onclick="window.location.href='scanner.html'">
+        <div class="quick-action-icon">📷</div>
+        <div class="quick-action-title">Scan Barcode</div>
+        <div class="quick-action-desc">Scan product barcode to get instant nutrition info</div>
+      </div>
+      <div class="quick-action-card" onclick="document.getElementById('search-input').focus()">
+        <div class="quick-action-icon">🔍</div>
+        <div class="quick-action-title">Search Food</div>
+        <div class="quick-action-desc">Search our database of thousands of products</div>
+      </div>
+    </div>
+
+    <!-- Recent Scans -->
+    <section class="recent-scans">
+      <div class="section-header">
+        <h2 class="section-title">Recent Scans</h2>
+        <a href="#" class="section-link" id="clear-recent" style="display: none;">Clear</a>
+      </div>
+      <div id="recent-scans-container" class="grid grid-3">
+        <!-- Will be populated by JS -->
+      </div>
+    </section>
+
+    <!-- Popular Items -->
+    <section class="popular-items">
+      <div class="section-header">
+        <h2 class="section-title">Popular Items</h2>
+      </div>
+      <div id="popular-items-container" class="grid grid-3">
+        <!-- Will be populated by JS -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // Search functionality
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    const recentScansContainer = document.getElementById('recent-scans-container');
+    const popularItemsContainer = document.getElementById('popular-items-container');
+    const clearRecentBtn = document.getElementById('clear-recent');
+
+    // Debounced search
+    const performSearch = debounce(async (query) => {
+      if (query.trim().length < 2) {
+        hideSearchResults(searchResults);
+        return;
+      }
+
+      const results = await searchProducts(query);
+      
+      if (results.products.length > 0) {
+        // Normalize products before showing
+        const normalized = results.products.map(p => normalizeProduct(p));
+        showSearchResults(normalized, searchResults);
+      } else {
+        searchResults.innerHTML = `
+          <div class="search-result-item" style="cursor: default;">
+            <div style="flex: 1; text-align: center; padding: 20px; color: var(--text-secondary);">
+              This item isn't in our database yet. Try a different keyword.
+            </div>
+          </div>
+        `;
+        searchResults.style.display = 'block';
+      }
+    }, 400);
+
+    searchInput.addEventListener('input', (e) => {
+      performSearch(e.target.value);
+    });
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        hideSearchResults(searchResults);
+      }
+    });
+
+    // Load recent scans
+    function loadRecentScans() {
+      const recent = getRecentScans();
+      clearContainer(recentScansContainer);
+      
+      if (recent.length === 0) {
+        renderEmptyState(recentScansContainer, 'No recent scans', 'Scan or search for products to see them here');
+        clearRecentBtn.style.display = 'none';
+      } else {
+        clearRecentBtn.style.display = 'block';
+        recent.forEach(product => {
+          renderFoodCard(product, recentScansContainer);
+        });
+      }
+    }
+
+    // Clear recent scans
+    clearRecentBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (confirm('Clear all recent scans?')) {
+        setCachedItem('recentScans', []);
+        loadRecentScans();
+      }
+    });
+
+    // Load popular items
+    async function loadPopularItems() {
+      // Show skeletons
+      for (let i = 0; i < 6; i++) {
+        renderSkeletonCard(popularItemsContainer);
+      }
+
+      // Search for popular items
+      const popularQueries = ['apple', 'banana', 'bread', 'milk', 'yogurt', 'cereal'];
+      const allProducts = [];
+
+      for (const query of popularQueries) {
+        const result = await searchProducts(query);
+        if (result.products.length > 0) {
+          // Normalize product before adding
+          allProducts.push(normalizeProduct(result.products[0]));
+        }
+      }
+
+      clearContainer(popularItemsContainer);
+      
+      if (allProducts.length === 0) {
+        renderEmptyState(popularItemsContainer, 'No popular items found', 'Check your internet connection');
+      } else {
+        allProducts.forEach(product => {
+          renderFoodCard(product, popularItemsContainer);
+        });
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRecentScans();
+      loadPopularItems();
+    });
+  </script>
+</body>
+</html>
