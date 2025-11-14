@@ -109,17 +109,6 @@
   padding: var(--spacing-lg);
 }
 
-.food-card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .food-card-brand {
   font-size: 13px;
   color: var(--text-secondary);
@@ -467,3 +456,4 @@
     gap: var(--spacing-md);
   }
 }
+

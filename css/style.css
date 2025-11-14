@@ -12,7 +12,7 @@
 :root {
   /* Colors */
   --bg-primary: #F5F7FA;
-  --text-primary: #1D1D1F;
+  --text-primary: #61616a;
   --text-secondary: #6B7280;
   --accent: #4F46E5;
   --card-bg: #FFFFFF;
@@ -189,3 +189,4 @@ p {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-primary);
 }
+
