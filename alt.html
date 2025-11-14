@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Tracker - Better Alternatives</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <div class="alternatives-screen">
+    <!-- Header -->
+    <div class="alternatives-header">
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+        <button class="back-button" onclick="window.location.href='index.html'">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+        <h1 class="alternatives-title">Better Alternatives</h1>
+      </div>
+      <p class="alternatives-subtitle">Find healthier and more eco-friendly options</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="card" style="text-align: center; padding: 48px;">
+      <div class="loading-spinner" style="margin: 0 auto;"></div>
+      <p style="margin-top: 24px; color: var(--text-secondary);">Finding better alternatives...</p>
+    </div>
+
+    <!-- Content -->
+    <div id="content" style="display: none;">
+      <div id="alternatives-container" class="grid grid-2">
+        <!-- Will be populated by JS -->
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" style="display: none;" class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-text">No alternatives found</div>
+        <div class="empty-state-subtext">We couldn't find better alternatives for this product.</div>
+        <button class="btn btn-primary" style="margin-top: 24px;" onclick="window.location.href='index.html'">
+          Go Back Home
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    let currentProduct = null;
+
+    // Get product code from URL
+    function getProductCode() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('code');
+    }
+
+    // Load product and alternatives
+    async function loadAlternatives() {
+      const code = getProductCode();
+      
+      if (!code) {
+        showEmpty();
+        return;
+      }
+
+      showLoading('Loading product...');
+      
+      try {
+        // Load current product
+        currentProduct = await getProductByBarcode(code);
+        
+        if (!currentProduct) {
+          showEmpty();
+          return;
+        }
+
+        hideLoading();
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        // Show loading for alternatives
+        showLoading('Finding alternatives...');
+
+        // Find alternatives
+        const alternatives = await findAlternatives(currentProduct);
+        
+        hideLoading();
+
+        if (alternatives.length === 0) {
+          showEmpty();
+        } else {
+          renderAlternatives(alternatives);
+        }
+      } catch (error) {
+        console.error('Error loading alternatives:', error);
+        showEmpty();
+        hideLoading();
+      }
+    }
+
+    // Render alternatives
+    function renderAlternatives(alternatives) {
+      const container = document.getElementById('alternatives-container');
+      clearContainer(container);
+
+      alternatives.forEach((alt, index) => {
+        const card = document.createElement('div');
+        card.className = 'alternative-card';
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.onclick = () => {
+          window.location.href = `add.html?code=${alt.code}`;
+        };
+
+        const imageUrl = getImageUrl(alt);
+        const improvement = getImprovementText(currentProduct, alt);
+
+        card.innerHTML = `
+          <img src="${imageUrl}" alt="${alt.name}" class="alternative-image" loading="lazy" onerror="this.src='https://via.placeholder.com/400?text=No+Image'">
+          <div class="alternative-content">
+            <div class="alternative-header-info">
+              <div style="flex: 1;">
+                <h3 class="alternative-name">${formatProductName(alt.name)}</h3>
+                <p class="alternative-brand">${alt.brand || 'Unknown Brand'}</p>
+              </div>
+              <div class="alternative-grades">
+                ${alt.nutriScore ? `<span class="badge ${getGradeClass(alt.nutriScore)}">${alt.nutriScore.toUpperCase()}</span>` : ''}
+                ${alt.ecoScore ? `<span class="badge ${getGradeClass(alt.ecoScore)}">${alt.ecoScore.toUpperCase()}</span>` : ''}
+              </div>
+            </div>
+            <div class="alternative-stats">
+              <div class="alternative-stat">
+                <div class="alternative-stat-label">Calories</div>
+                <div class="alternative-stat-value">${formatNutrition(alt.nutriments?.energy, '')}</div>
+              </div>
+              <div class="alternative-stat">
+                <div class="alternative-stat-label">Protein</div>
+                <div class="alternative-stat-value">${formatNutrition(alt.nutriments?.protein, '')}</div>
+              </div>
+              <div class="alternative-stat">
+                <div class="alternative-stat-label">Carbs</div>
+                <div class="alternative-stat-value">${formatNutrition(alt.nutriments?.carbs, '')}</div>
+              </div>
+              <div class="alternative-stat">
+                <div class="alternative-stat-label">Fat</div>
+                <div class="alternative-stat-value">${formatNutrition(alt.nutriments?.fat, '')}</div>
+              </div>
+            </div>
+            ${improvement ? `
+            <div class="alternative-improvement">
+              <div class="alternative-improvement-title">✨ Why this is better</div>
+              <div class="alternative-improvement-text">${improvement}</div>
+            </div>
+            ` : ''}
+          </div>
+        `;
+
+        container.appendChild(card);
+        
+        // Preload image
+        preloadImage(imageUrl).catch(() => {});
+      });
+    }
+
+    // Get improvement text
+    function getImprovementText(current, alternative) {
+      const improvements = [];
+      
+      if (current.nutriScore && alternative.nutriScore) {
+        const gradeOrder = { 'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5 };
+        const currentGrade = gradeOrder[current.nutriScore.toLowerCase()] || 5;
+        const altGrade = gradeOrder[alternative.nutriScore.toLowerCase()] || 5;
+        
+        if (altGrade < currentGrade) {
+          improvements.push(`Better Nutri-Score (${alternative.nutriScore.toUpperCase()} vs ${current.nutriScore.toUpperCase()})`);
+        }
+      }
+
+      if (current.ecoScore && alternative.ecoScore) {
+        const gradeOrder = { 'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5 };
+        const currentGrade = gradeOrder[current.ecoScore.toLowerCase()] || 5;
+        const altGrade = gradeOrder[alternative.ecoScore.toLowerCase()] || 5;
+        
+        if (altGrade < currentGrade) {
+          improvements.push(`Better Eco-Score (${alternative.ecoScore.toUpperCase()} vs ${current.ecoScore.toUpperCase()})`);
+        }
+      }
+
+      if (current.nutriments?.energy && alternative.nutriments?.energy) {
+        if (alternative.nutriments.energy < current.nutriments.energy) {
+          const diff = Math.round(current.nutriments.energy - alternative.nutriments.energy);
+          improvements.push(`${diff} fewer calories per 100g`);
+        }
+      }
+
+      return improvements.join(' • ') || 'Similar product with comparable nutrition';
+    }
+
+    // Show empty state
+    function showEmpty() {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('content').style.display = 'none';
+      document.getElementById('empty-state').style.display = 'block';
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadAlternatives();
+    });
+  </script>
+</body>
+</html>

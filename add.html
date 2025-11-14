@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Tracker - Product Info</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="info-screen">
+    <!-- Header with back button -->
+    <div class="info-header">
+      <button class="back-button" onclick="window.location.href='index.html'">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <h1>Product Details</h1>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="card" style="text-align: center; padding: 48px;">
+      <div class="loading-spinner" style="margin: 0 auto;"></div>
+      <p style="margin-top: 24px; color: var(--text-secondary);">Loading product information...</p>
+    </div>
+
+    <!-- Content (hidden initially) -->
+    <div id="content" style="display: none;">
+      <!-- Product Image -->
+      <div class="info-image-container">
+        <img id="product-image" src="" alt="Product" class="info-image">
+      </div>
+
+      <!-- Title Section -->
+      <div class="info-title-section">
+        <h2 id="product-title" class="info-title"></h2>
+        <p id="product-brand" class="info-brand"></p>
+        <div class="info-grades">
+          <div class="grade-item">
+            <span class="grade-label">Nutri-Score</span>
+            <span id="nutri-badge" class="badge badge-grade"></span>
+          </div>
+          <div class="grade-item">
+            <span class="grade-label">Eco-Score</span>
+            <span id="eco-badge" class="badge badge-grade"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nutrition Chart -->
+      <div class="nutrition-section">
+        <h3 class="nutrition-title">Nutrition Breakdown</h3>
+        <div class="chart-container">
+          <canvas id="nutrition-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Nutrition Grid -->
+      <div class="nutrition-section">
+        <h3 class="nutrition-title">Nutritional Values (per 100g)</h3>
+        <div id="nutrition-grid" class="nutrition-grid">
+          <!-- Will be populated by JS -->
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="alternatives-btn" onclick="viewAlternatives()">
+          <span>🔍</span>
+          <span>Find Better Alternatives</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" style="display: none;" class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon">❌</div>
+        <div class="empty-state-text">Product not found</div>
+        <div class="empty-state-subtext">This product isn't in our database yet.</div>
+        <button class="btn btn-primary" style="margin-top: 24px;" onclick="window.location.href='index.html'">
+          Go Back Home
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/charts.js"></script>
+  <script>
+    let currentProduct = null;
+
+    // Get product code from URL
+    function getProductCode() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('code');
+    }
+
+    // Load product data
+    async function loadProduct() {
+      const code = getProductCode();
+      
+      if (!code) {
+        showError();
+        return;
+      }
+
+      showLoading('Loading product...');
+      
+      try {
+        const product = await getProductByBarcode(code);
+        
+        if (!product) {
+          showError();
+          return;
+        }
+
+        currentProduct = product;
+        renderProduct(product);
+        addToRecentScans(product);
+        hideLoading();
+      } catch (error) {
+        console.error('Error loading product:', error);
+        showError();
+        hideLoading();
+      }
+    }
+
+    // Render product information
+    function renderProduct(product) {
+      // Hide loading, show content
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      // Set image
+      const imageUrl = getImageUrl(product);
+      document.getElementById('product-image').src = imageUrl;
+      preloadImage(imageUrl).catch(() => {});
+
+      // Set title and brand
+      document.getElementById('product-title').textContent = formatProductName(product.name);
+      document.getElementById('product-brand').textContent = product.brand || 'Unknown Brand';
+
+      // Set badges
+      const nutriBadge = document.getElementById('nutri-badge');
+      const ecoBadge = document.getElementById('eco-badge');
+      
+      if (product.nutriScore) {
+        nutriBadge.textContent = product.nutriScore.toUpperCase();
+        nutriBadge.className = `badge badge-grade ${getGradeClass(product.nutriScore)}`;
+      } else {
+        nutriBadge.textContent = 'N/A';
+        nutriBadge.className = 'badge badge-grade';
+      }
+
+      if (product.ecoScore) {
+        ecoBadge.textContent = product.ecoScore.toUpperCase();
+        ecoBadge.className = `badge badge-grade ${getGradeClass(product.ecoScore)}`;
+      } else {
+        ecoBadge.textContent = 'N/A';
+        ecoBadge.className = 'badge badge-grade';
+      }
+
+      // Render nutrition grid
+      renderNutritionGrid(product.nutriments, document.getElementById('nutrition-grid'));
+
+      // Render chart
+      setTimeout(() => {
+        renderNutritionChart(product.nutriments, 'nutrition-chart');
+      }, 100);
+    }
+
+    // Show error state
+    function showError() {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+    }
+
+    // View alternatives
+    function viewAlternatives() {
+      if (currentProduct) {
+        window.location.href = `alt.html?code=${currentProduct.code}`;
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadProduct();
+    });
+
+    // Cleanup on unload
+    window.addEventListener('beforeunload', () => {
+      destroyChart();
+    });
+  </script>
+</body>
+</html>
