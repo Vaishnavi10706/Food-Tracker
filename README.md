@@ -1,3 +1,6 @@
+Project available on
+https://vaishnavi10706.github.io/Food-Tracker/index.html
+
 Food-Tracker – Scan, Search & Explore Food Products
 Project Overview
 
@@ -91,3 +94,4 @@ User authentication for personalized saved items
 Progressive Web App (PWA) support for offline access
 
 Integration with additional food databases for richer insights
+
